@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フラクタル心理学 学習フラッシュカード</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chosen Palette: Interactive Gradient -->
+    <!-- Application Structure Plan: The application is structured as a single-view flashcard learning tool. The information architecture prioritizes the core user task: studying cards. 1. **Header:** Provides clear branding. 2. **Dashboard:** Displays key stats (Studied, Mastered, Total) upfront, giving users immediate feedback on their progress. 3. **Controls:** A category filter allows users to focus their study sessions. 4. **Card Display:** A large, central card element is the main focus, with a flip interaction. 5. **Navigation & Actions:** Buttons for next/prev, reset, and know/don't know are placed intuitively around the card. This structure was chosen to create a focused, game-like learning environment, directly inspired by the user's provided React component, but implemented in vanilla JS for self-containment. -->
+    <!-- Visualization & Content Choices: 1. **Card Data:** (Report Info: User-provided TSX file) -> (Goal: Create flashcards) -> (Presentation: Interactive HTML/CSS card) -> (Interaction: Click to flip, buttons to navigate/rate) -> (Justification: Directly implements the user's request for a flashcard app based on their example.) 2. **Study Progress:** (Report Info: User-provided TSX file logic) -> (Goal: Visualize progress) -> (Presentation: HTML/CSS progress bars) -> (Interaction: Dynamically updated via JS) -> (Justification: Provides clear, immediate visual feedback on learning, enhancing motivation.) -> (Library/Method: All interactions are handled with custom vanilla JavaScript. No charting libraries needed.) -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .card-flip-container {
+            perspective: 1000px;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .card-flip-container.is-flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            border-radius: 1.5rem;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+        .disabled-btn {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+
+    <div id="app" class="max-w-4xl mx-auto p-4 sm:p-6 min-h-screen">
+        
+        <header class="text-center mb-6">
+            <div class="flex items-center justify-center gap-3 mb-2">
+                <div class="p-2 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full text-white">
+                    <span class="text-2xl">🧠</span>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                        フラクタル心理学
+                    </h1>
+                    <p class="text-lg font-medium text-gray-700">一色真宇 理論学習アプリ</p>
+                </div>
+            </div>
+            <p class="text-gray-600 text-sm">TAW理論・著書の内容に基づくフラッシュカード学習</p>
+        </header>
+
+        <section id="stats-section" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        </section>
+
+        <section class="mb-6">
+            <label for="category-select" class="block text-sm font-semibold text-gray-700 mb-2">学習カテゴリ</label>
+            <select id="category-select" class="w-full p-3 bg-white/80 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-lg transition-all duration-200">
+            </select>
+        </section>
+
+        <section id="flashcard-section" class="relative mb-4">
+            <div id="card-container" class="card-flip-container w-full h-96 min-h-[24rem] cursor-pointer">
+                <div id="card-inner" class="card-inner">
+                    <div id="card-front" class="card-front"></div>
+                    <div id="card-back" class="card-back"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="navigation-controls" class="flex justify-between items-center mb-6">
+        </section>
+        
+        <section id="mastery-controls" class="flex gap-4 justify-center mb-6 h-14">
+        </section>
+
+        <section id="progress-section" class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/30">
+        </bodysection>
+
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const appState = {
+            cards: [
+                { id: 1, category: 'TAW基本理論', front: 'TAWとは何の略ですか？', back: 'Theory of an Advanced World（進化した世界の理論）の略。2007年に一色真宇によって体系化された理論で、思考と現象の関係を細かく定義した世界初の理論です。', difficulty: 'easy', source: '公式サイト・著書全般' },
+                { id: 2, category: 'TAW基本理論', front: 'フラクタル心理学の根本原理を説明してください', back: '「思考が100%例外なく現実化する」「この世界には自分ひとりしかいない（一元論・MONISM）」「現象は360度すべて自分の投影」という3つの基本原理があります。', difficulty: 'medium', source: '著書「ひとを変える魔法」他' },
+                { id: 3, category: 'こころの進化', front: '「こころの進化の6つの階段」とは何ですか？', back: '一色真宇の著書で、人間のこころの成長段階を6つの階段に分けて解説した理論。各段階での善悪の概念や価値観の変化、より高次元の意識への進化について説明されています。', difficulty: 'medium', source: '著書「こころの進化の6つの階段」' },
+                { id: 4, category: '問題解決技法', front: '問題の原因となる3つの要素とは？', back: '「傲慢」「怠慢」「無知」。フラクタル心理学では、すべての問題の原因はこの3つであり、それ以外に原因はないとしています。', difficulty: 'easy', source: '各種講座・カウンセリング' },
+                { id: 5, category: '実践技法', front: 'インナーチャイルド修正法とは？', back: '乳幼児期の認識パターンを修正することで現在の問題を解決する手法。大脳辺縁系の古い思考パターンを、幼児期のイメージを使って修正します。', difficulty: 'hard', source: '著書「ひとを変える魔法」マスターコース' },
+                { id: 6, category: '潜在意識', front: '潜在意識レッスンの目的は？', back: '「本当の愛と健康を手に入れる」ために、深層意識の働きを理解し、愛の定義を変え、思考パターンを修正すること。表面意識では気づかない深い部分の修正を行います。', difficulty: 'medium', source: '著書「本当の愛と健康が手に入る潜在意識レッスン」' },
+                { id: 7, category: '自分革命', front: '「自分革命」における脳の成長とは？', back: '脳の錯覚を取り除き、思考パターンを根本から変えること。特に大脳辺縁系（古い脳）の未熟な思考パターンを新皮質（新しい脳）の成熟した思考に変える過程を指します。', difficulty: 'hard', source: '著書「自分革命」' },
+                { id: 8, category: '現象解読', front: '360度投影の法則とは？', back: 'あなたの周りに起きる現象はすべて、あなたの深層意識の投影であるという法則。家族や職場の人々、出来事などから自分の深層意識を読み取ることができます。', difficulty: 'medium', source: 'TAWフラクタル現象学' },
+                { id: 9, category: '実践技法', front: 'A→B思考法とは？', back: 'ネガティブな思考パターン（A思考）をポジティブな思考パターン（B思考）へと意識的に転換する技法。思考を変えることで現象を変えていく実践的手法です。', difficulty: 'easy', source: 'マスターコース各種' },
+                { id: 10, category: '愛と健康', front: '「本当の愛」の定義とは？', back: '一般的な同情や甘やかしではなく、相手の成長を促す愛。時には厳しさも含む、相手の魂の成長を真に望む愛のこと。健康も含めて、正しい愛の定義から生まれます。', difficulty: 'hard', source: '著書「本当の愛と健康が手に入る潜在意識レッスン」' },
+                { id: 11, category: 'TAW基本理論', front: '時間の概念はフラクタル心理学ではどう扱われますか？', back: '一般心理学では「過去→現在」の因果関係ですが、フラクタル心理学では「思考が現実化」するため「現在の思考→過去の現象」となります。自分より先に存在するものはありません。', difficulty: 'hard', source: 'TAW理論・各種著書' },
+                { id: 12, category: '実践技法', front: 'モニタリングとは？', back: '自分の思考や感情の状態を客観的に観察すること。現実創造の質を高めるために必須のスキルで、日常的に自分の内的状態を把握し続ける技術です。', difficulty: 'medium', source: 'マスターコース実践編' },
+            ],
+            filteredCards: [],
+            currentCardIndex: 0,
+            isFlipped: false,
+            selectedCategory: '全て',
+            studyStats: { studied: 0, mastered: 0, total: 0, seen: new Set() }
+        };
+
+        const DOMElements = {
+            statsSection: document.getElementById('stats-section'),
+            categorySelect: document.getElementById('category-select'),
+            cardContainer: document.getElementById('card-container'),
+            cardInner: document.getElementById('card-inner'),
+            cardFront: document.getElementById('card-front'),
+            cardBack: document.getElementById('card-back'),
+            navigationControls: document.getElementById('navigation-controls'),
+            masteryControls: document.getElementById('mastery-controls'),
+            progressSection: document.getElementById('progress-section'),
+        };
+
+        function getDifficultyClass(difficulty) {
+            switch(difficulty) {
+                case 'easy': return 'bg-green-100 text-green-800';
+                case 'medium': return 'bg-yellow-100 text-yellow-800';
+                case 'hard': return 'bg-red-100 text-red-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+        
+        function getDifficultyText(difficulty) {
+            switch(difficulty) {
+                case 'easy': return '基本';
+                case 'medium': return '標準';
+                case 'hard': return '上級';
+                default: return 'その他';
+            }
+        }
+
+        function renderCard() {
+            if (appState.filteredCards.length === 0) {
+                DOMElements.cardFront.innerHTML = `<p class="text-gray-600">このカテゴリにカードはありません。</p>`;
+                DOMElements.cardBack.innerHTML = '';
+                DOMElements.navigationControls.innerHTML = '';
+                DOMElements.masteryControls.innerHTML = '';
+                return;
+            }
+
+            const card = appState.filteredCards[appState.currentCardIndex];
+            
+            DOMElements.cardFront.innerHTML = `
+                <div class="absolute top-4 left-4 right-4 flex justify-between items-start">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="px-3 py-1 rounded-full text-xs font-medium ${getDifficultyClass(card.difficulty)}">${getDifficultyText(card.difficulty)}</span>
+                        <span class="px-3 py-1 bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 rounded-full text-xs font-medium">${card.category}</span>
+                    </div>
+                    <div class="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full whitespace-nowrap">
+                        ${appState.currentCardIndex + 1} / ${appState.filteredCards.length}
+                    </div>
+                </div>
+                <div class="text-center space-y-4 px-4">
+                    <h3 class="text-lg font-semibold text-gray-700">質問</h3>
+                    <p class="text-xl text-gray-800 leading-relaxed font-medium">${card.front}</p>
+                </div>
+                <p class="absolute bottom-4 text-sm text-gray-500 italic">💡 カードをクリックして答えを見る</p>
+            `;
+
+            DOMElements.cardBack.innerHTML = `
+                <div class="absolute top-4 left-4 right-4 flex justify-between items-start">
+                     <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                        📖 ${card.source}
+                    </span>
+                </div>
+                <div class="text-center space-y-4 px-4">
+                     <h3 class="text-lg font-semibold text-gray-700">解説</h3>
+                     <p class="text-lg text-gray-800 leading-relaxed text-left">${card.back}</p>
+                </div>
+            `;
+            
+            if (appState.isFlipped) {
+                DOMElements.cardContainer.classList.add('is-flipped');
+            } else {
+                DOMElements.cardContainer.classList.remove('is-flipped');
+            }
+            
+            renderControls();
+        }
+
+        function renderControls() {
+            const isFirstCard = appState.currentCardIndex === 0;
+            const isLastCard = appState.currentCardIndex === appState.filteredCards.length - 1;
+
+            DOMElements.navigationControls.innerHTML = `
+                <button id="prev-btn" class="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-gray-700 rounded-xl hover:bg-white transition-all duration-200 shadow-lg border border-white/30 ${isFirstCard ? 'disabled-btn' : ''}">
+                    <span>&#9664;</span> 前へ
+                </button>
+                <button id="reset-btn" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 rounded-xl hover:from-purple-200 hover:to-indigo-200 transition-all duration-200 shadow-lg border border-white/30">
+                    <span>🔄</span> リセット
+                </button>
+                <button id="next-btn" class="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-gray-700 rounded-xl hover:bg-white transition-all duration-200 shadow-lg border border-white/30 ${isLastCard ? 'disabled-btn' : ''}">
+                    次へ <span>&#9654;</span>
+                </button>
+            `;
+
+            if (appState.isFlipped) {
+                DOMElements.masteryControls.innerHTML = `
+                    <button id="unknown-btn" class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg transform hover:scale-105">
+                        <span>❌</span> もう一度
+                    </button>
+                    <button id="known-btn" class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-lg transform hover:scale-105">
+                        <span>✔️</span> 理解した
+                    </button>
+                `;
+            } else {
+                DOMElements.masteryControls.innerHTML = '';
+            }
+            
+            addControlListeners();
+        }
+
+        function renderStats() {
+            const { studied, mastered, total } = appState.studyStats;
+            const studiedPercent = total > 0 ? (studied / total) * 100 : 0;
+            const masteredPercent = total > 0 ? (mastered / total) * 100 : 0;
+            const efficiency = studied > 0 ? Math.round((mastered / studied) * 100) : 0;
+
+            DOMElements.statsSection.innerHTML = `
+                <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-white/20 text-center">
+                    <div class="text-2xl font-bold text-blue-600 mb-1">${studied}</div>
+                    <div class="text-sm text-gray-600">学習済み</div>
+                    <div class="w-full bg-blue-100 rounded-full h-2 mt-2">
+                        <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: ${studiedPercent}%"></div>
+                    </div>
+                </div>
+                <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-white/20 text-center">
+                    <div class="text-2xl font-bold text-green-600 mb-1">${mastered}</div>
+                    <div class="text-sm text-gray-600">習得済み</div>
+                    <div class="w-full bg-green-100 rounded-full h-2 mt-2">
+                        <div class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: ${masteredPercent}%"></div>
+                    </div>
+                </div>
+                <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-white/20 text-center">
+                    <div class="text-2xl font-bold text-purple-600 mb-1">${total}</div>
+                    <div class="text-sm text-gray-600">総カード数</div>
+                     <div class="text-xs text-gray-500 mt-1">習得率: ${masteredPercent.toFixed(0)}%</div>
+                </div>
+            `;
+            
+            DOMElements.progressSection.innerHTML = `
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <span class="text-yellow-500">⭐</span> 学習進捗
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-600 mb-2">
+                            <span>総合進捗</span>
+                            <span>${studiedPercent.toFixed(0)}% 完了</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-gradient-to-r from-purple-500 to-indigo-500 h-3 rounded-full transition-all duration-500" style="width: ${studiedPercent}%"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-600">現在の学習効率:</span>
+                            <span class="font-semibold text-purple-600 ml-2">${efficiency}%</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">残りカード:</span>
+                            <span class="font-semibold text-indigo-600 ml-2">${total - studied} 枚</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function flipCard() {
+            appState.isFlipped = !appState.isFlipped;
+            if (appState.isFlipped) {
+                const currentCard = appState.filteredCards[appState.currentCardIndex];
+                if (!appState.studyStats.seen.has(currentCard.id)) {
+                    appState.studyStats.seen.add(currentCard.id);
+                    appState.studyStats.studied = appState.studyStats.seen.size;
+                }
+            }
+            renderCard();
+            renderStats();
+        }
+
+        function nextCard() {
+            if (appState.currentCardIndex < appState.filteredCards.length - 1) {
+                appState.currentCardIndex++;
+                appState.isFlipped = false;
+                renderCard();
+            }
+        }
+
+        function prevCard() {
+            if (appState.currentCardIndex > 0) {
+                appState.currentCardIndex--;
+                appState.isFlipped = false;
+                renderCard();
+            }
+        }
+        
+        function markAsKnown() {
+            const card = appState.filteredCards[appState.currentCardIndex];
+            if (!card.mastered) {
+                card.mastered = true;
+                appState.studyStats.mastered++;
+            }
+            nextCard();
+            renderStats();
+        }
+
+        function markAsUnknown() {
+            const card = appState.filteredCards[appState.currentCardIndex];
+            if (card.mastered) {
+                card.mastered = false;
+                appState.studyStats.mastered--;
+            }
+            nextCard();
+            renderStats();
+        }
+
+        function resetProgress() {
+            appState.currentCardIndex = 0;
+            appState.isFlipped = false;
+            appState.studyStats.studied = 0;
+            appState.studyStats.mastered = 0;
+            appState.studyStats.seen.clear();
+            appState.cards.forEach(c => c.mastered = false);
+            renderAll();
+        }
+
+        function handleCategoryChange(e) {
+            appState.selectedCategory = e.target.value;
+            appState.filteredCards = appState.selectedCategory === '全て' 
+                ? appState.cards 
+                : appState.cards.filter(card => card.category === appState.selectedCategory);
+            appState.studyStats.total = appState.filteredCards.length;
+            resetProgress();
+        }
+
+        function setupCategories() {
+            const categories = ['全て', ...new Set(appState.cards.map(card => card.category))];
+            DOMElements.categorySelect.innerHTML = categories
+                .map(category => `<option value="${category}">${category}</option>`)
+                .join('');
+        }
+        
+        function addControlListeners() {
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            const knownBtn = document.getElementById('known-btn');
+            const unknownBtn = document.getElementById('unknown-btn');
+
+            if (prevBtn) prevBtn.addEventListener('click', prevCard);
+            if (nextBtn) nextBtn.addEventListener('click', nextCard);
+            if (resetBtn) resetBtn.addEventListener('click', resetProgress);
+            if (knownBtn) knownBtn.addEventListener('click', markAsKnown);
+            if (unknownBtn) unknownBtn.addEventListener('click', markAsUnknown);
+        }
+
+        function renderAll() {
+            renderCard();
+            renderStats();
+        }
+
+        function init() {
+            setupCategories();
+            appState.filteredCards = appState.cards;
+            appState.studyStats.total = appState.filteredCards.length;
+
+            DOMElements.cardContainer.addEventListener('click', flipCard);
+            DOMElements.categorySelect.addEventListener('change', handleCategoryChange);
+            
+            renderAll();
+        }
+
+        init();
+    });
+    </script>
+
+</body>
+</html>
